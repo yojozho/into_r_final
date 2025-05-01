@@ -1,0 +1,259 @@
+---
+title: "R Coding for Data Analysis Final Project"
+author: "Joyce Zhou"
+date: "08/12/2024"
+output: slidy_presentation
+---
+```{r}
+setwd("/Users/yojozho/Desktop/BMIN-GA1005/final_project/final-assignment-yojozho")
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(gridExtra)
+library(ggplot2)
+library(ggpubr)
+library(ComplexHeatmap)
+library(ggsignif)
+```
+
+## Background / Context
+
+Breast cancer data set from Kaggle and can also be found on the UC Irvine Machine Learning Repository. The features describe the cell nuclei and were calculated from FNA breast mass images. 
+
+Link: https://www.kaggle.com/datasets/uciml/breast-cancer-wisconsin-data
+
+The data set contains 569 observations and there are 32 variables. Contains 357 benign tumor observations and 212 malignant tumor observations. One of the variables contains IDs, another variable dictates benign and malignant tumors, and the rest of the features are measurements from the image data.
+
+This data set allows for data visualization, heatmap generation, statistical analysis, and regression analysis
+
+The ultimate goal is to understand the differences between benign and malignant tumors by exploring the data. 
+
+***
+
+## Methods & Results
+
+#### Import Data from .csv:
+
+Changed `diagnosis` to a factor rather than a character variable and changed the labels to Benign and Malignant. 
+
+Subset data to only include mean measurements since they are the most important measurements. 
+
+No missing values.
+
+```{r}
+breast_cancer_data = read.csv("data.csv")
+
+breast_cancer_data$diagnosis = as.factor(breast_cancer_data$diagnosis)
+levels(breast_cancer_data$diagnosis) = c("Benign", "Malignant")
+
+summary(breast_cancer_data)
+```
+***
+
+#### Subsetting: 
+
+Subset the data to only include the mean measurements since they are the most important. Remove `id` column since it's not important to the analysis. 
+
+Then, subset the data into benign and malignant data to analyze the difference between the two categories. 
+
+```{r}
+breast_cancer_data = breast_cancer_data[,2:12]
+
+benign_data = grep("Benign", breast_cancer_data$diagnosis)
+benign_data = breast_cancer_data[benign_data,]
+malignant_data = grep("Malignant", breast_cancer_data$diagnosis)
+malignant_data = breast_cancer_data[malignant_data,]
+```
+***
+
+#### Data Visualization:
+
+Create histogram plots to look at the distribution of the data and if it's normally distributed.
+
+```{r}
+p1 = ggplot(breast_cancer_data,aes(x=radius_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+p2 = ggplot(breast_cancer_data,aes(x=texture_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+p3 = ggplot(breast_cancer_data,aes(x=perimeter_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+p4 = ggplot(breast_cancer_data,aes(x=area_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+p5 = ggplot(breast_cancer_data,aes(x=smoothness_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+p6 = ggplot(breast_cancer_data,aes(x=compactness_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+p7 = ggplot(breast_cancer_data,aes(x=concavity_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+p8 = ggplot(breast_cancer_data,aes(x=concave.points_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+p9 = ggplot(breast_cancer_data,aes(x=symmetry_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+p10 = ggplot(breast_cancer_data,aes(x=fractal_dimension_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+ggarrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, ncol = 2, nrow = 5)
+```
+From the plots, we can see that most of the variables are skewed to the right. This could cause some issues for us down the line with our regresion model so we need to address this skewness. 
+
+***
+
+#### Log Transformation: 
+
+To address skewness, we log transform the data. This brings the data closer to normal distribution
+
+```{r}
+breast_cancer_data[,2:11] = log(breast_cancer_data[,2:11])
+breast_cancer_data[breast_cancer_data == "-Inf" ] = NA
+breast_cancer_data = na.omit(breast_cancer_data)
+
+benign_data[,2:11] = log(benign_data[,2:11])
+benign_data[benign_data == "-Inf" ] = NA
+benign_data = na.omit(benign_data)
+
+malignant_data[,2:11] = log(malignant_data[,2:11])
+malignant_data[malignant_data == "-Inf" ] = NA
+malignant_data = na.omit(malignant_data)
+```
+
+Replot the data to check the distribution. 
+
+```{r}
+p1 = ggplot(breast_cancer_data,aes(x=radius_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+p2 = ggplot(breast_cancer_data,aes(x=texture_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+p3 = ggplot(breast_cancer_data,aes(x=perimeter_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+p4 = ggplot(breast_cancer_data,aes(x=area_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+p5 = ggplot(breast_cancer_data,aes(x=smoothness_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+p6 = ggplot(breast_cancer_data,aes(x=compactness_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+p7 = ggplot(breast_cancer_data,aes(x=concavity_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+p8 = ggplot(breast_cancer_data,aes(x=concave.points_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+p9 = ggplot(breast_cancer_data,aes(x=symmetry_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+p10 = ggplot(breast_cancer_data,aes(x=fractal_dimension_mean),color = blue) + geom_histogram(bins = 30, color = "darkblue", fill = "lightblue") + theme_bw()
+ggarrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, ncol = 2, nrow = 5)
+```
+The data is less skewed after log transformation.
+
+***
+
+## Box plots:
+
+There are 10 features but we will explore four of them for simplicity: `radius_mean`, `texture_mean`, `smoothness_mean`, and `symmetry_mean`. Create boxplots to see if there are differences in the distribution of data between benign and malignant tumors. 
+
+```{r}
+b1 = ggplot(breast_cancer_data, aes(x = diagnosis, y = radius_mean)) + geom_boxplot()
+b2 = ggplot(breast_cancer_data, aes(x = diagnosis, y = texture_mean)) + geom_boxplot()
+b3 = ggplot(breast_cancer_data, aes(x = diagnosis, y = smoothness_mean)) + geom_boxplot()
+b4 = ggplot(breast_cancer_data, aes(x = diagnosis, y = symmetry_mean)) + geom_boxplot()
+ggarrange(b1, b2, b3, b4, ncol = 2, nrow = 2)
+```
+There is a difference in the distribution of data between benign and malignant tumors. Benign tumors generally have lower measurements than malignant tumors. This is most apparent in `radius_mean`.
+The data seems well suited for a classification model. 
+
+***
+
+#### Heatmap: 
+
+Create heatmaps for the benign data and the malignant data and plot them side by side to see the differences in tumor measurements between the two. Convert `data.frame` to matrix to create the heatmap. Remove the `diagnosis` column since it's not a feature. No row clustering to keep things consistent between the two plots. 
+
+```{r}
+benign_matrix = as.matrix(benign_data[,2:11])
+malignant_matrix = as.matrix(benign_data[,2:11])
+
+h1 = Heatmap(benign_matrix, cluster_columns = FALSE, clustering_method_rows = "complete", show_row_names = FALSE)
+h2 = Heatmap(malignant_matrix, cluster_columns = FALSE, clustering_method_rows = "complete", show_row_names = FALSE)
+
+h1 + h2
+```
+The relationship between the measurements between both categories appears to be very similar. However, based on the previous box plots, there should still be a way to differentiate between the two categories to classify data. 
+
+***
+
+#### Statistical Analysis: 
+
+The relationship between the features and the `diagnosis` is nonlinear so it wouldn't be appropriate to use a test like pearson or a test like spearman that needs two continuous variables. We will use the Mann-Whitney U test with a p-value threshold of p-value < 0.05 since that is the standard threshold. 
+
+Check if there is a relationship between `radius_mean` and `diagnosis`. 
+
+```{r}
+wilcox.test(breast_cancer_data$radius_mean ~ breast_cancer_data$diagnosis)
+```
+There is a strong relationship between `radius_mean` and `diagnosis` with a p-value of 2.2e-16.
+
+***
+
+Check if there is a relationship between `texture_mean` and `diagnosis`. 
+```{r}
+wilcox.test(breast_cancer_data$texture_mean ~ breast_cancer_data$diagnosis)
+```
+There is a strong relationship between `texture_mean` and `diagnosis` with a p-value of 2.2e-16.
+
+***
+
+Check if there is a relationship between `smoothness_mean` and `diagnosis`. 
+```{r}
+wilcox.test(breast_cancer_data$smoothness_mean ~ breast_cancer_data$diagnosis)
+```
+There is a strong relationship between `smoothness_mean` and `diagnosis` with a p-value of 2.2e-16.
+
+***
+
+Check if there is a relationship between `symmetry_mean` and `diagnosis`. 
+```{r}
+wilcox.test(breast_cancer_data$symmetry_mean ~ breast_cancer_data$diagnosis)
+```
+There is a strong relationship between `symmetry_mean` and `diagnosis` with a p-value of 2.268e-15.
+
+***
+
+Based on the statistically significant differences between the features based on the diagnosis being benign or malignant, it seems like the two categories have the ability to be differentiated. This confirms our observations from the previous plots. 
+
+***
+
+#### Logistic Regression: 
+
+Three models fitted. 
+
+`log_mod1` uses all features as predictor variables. We evaluate the statistical significance of each coefficient value using the p-value < 0.05 threshold since that is the standard. Then, `log_mod2` is fit using only the statistically significant features. Then, `log_mod3` is fit using the statistically significant features from the previous model. 
+
+```{r}
+
+log_mod1 = glm(diagnosis ~ ., data = breast_cancer_data, family = "binomial")
+summary(log_mod1)
+```
+`texture_mean`, `area_mean`,`smoothness_mean`, `concavity_mean`, and `symmetry_mean` are the statistically significant features. 
+
+***
+
+```{r}
+log_mod2 = glm(diagnosis ~ texture_mean + area_mean + smoothness_mean + concavity_mean + symmetry_mean, data = breast_cancer_data, family = "binomial")
+summary(log_mod2)
+```
+All features are statistically significant except for `symmetry_mean`. 
+
+***
+
+```{r}
+log_mod3 = glm(diagnosis ~ texture_mean + area_mean + smoothness_mean + concavity_mean, data = breast_cancer_data, family = "binomial")
+summary(log_mod3)
+```
+All features are statistically significant.
+
+***
+
+If we compare the AIC values from each model, it gets higher as we take away more features, indicating that the first model with all the features present is the best fit model for the data. However, the AIC value does not change very drastically between the models, which indicates that the variables removed were not overall very important to the model's ability to classify the tumor as benign or malignant. Whether to use the model with more or less features depends on the situation. In this case, it's preferable to use the better model since the data is in relation to patient health, which is very sensitive. We're generally not concerned with the interpretability of the model so having more features is not an issue. It's better to use the model with more features for more accurate classification.
+
+
+***
+
+## Discussion / Future Direction
+
+Since the original data set had 33 features, we subset the data to make it more manageable. There are clear differences between the feature measurements for benign and malignant tumors but these features has similar relationships to each other between the two categories. Measurements are generally higher in malignant tumors than benign tumors. 
+
+Generally, the models with more features did better than the models with less features at fitting the data. However, the difference wasn't extreme. Since this is patient data, it would be best to use the model that best fits the data, regardless of the number of features used.
+
+In the future, it would be interesting to explore the rest of the features that weren't used to see if there are potentially better predictors than the ones used. It would be interesting to see if there are variables that break the patterns seen in the data exploration/visualization. I would also like to explore the colinearity between features and whether that affects the model's ability to fit the data properly. 
+
+***
+
+## Citations
+
+UCI Machine Learning. Breast Cancer Wisconsin (Diagnostic) Data Set. Retrieved 08/14/2024 from https://www.kaggle.com/datasets/uciml/breast-cancer-wisconsin-data/data
+
+***
+
+## THANK YOU
+
+
+
+
